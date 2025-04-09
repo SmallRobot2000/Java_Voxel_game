@@ -220,7 +220,7 @@ public class FirstPersonCameraController extends InputAdapter {
             tmp.z = tmp.z * (canForwardZ ? 1f : 0f);
             tmp.nor().scl(deltaTime * velocity);
             camera.position.add(tmp);
-            System.out.println(camera.direction);
+            //System.out.println(camera.direction);
         }
         if (keys.containsKey(backwardKey)) {
             tmp.set(camera.direction).nor();
