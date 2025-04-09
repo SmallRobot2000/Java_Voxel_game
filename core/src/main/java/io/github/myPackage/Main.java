@@ -119,12 +119,10 @@ public class Main extends ApplicationAdapter {
 
         //finalBuffer.end();
 
-
-
-
 /*
         finalBuffer.begin();
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+
 
         // Bind both scene color and SSAO textures
         sceneBuffer.getColorBufferTexture().bind(0);
