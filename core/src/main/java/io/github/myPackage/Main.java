@@ -121,20 +121,8 @@ public class Main extends ApplicationAdapter {
 
 
 
-        ssaoBuffer.begin();
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
-        // Bind the depth texture from sceneBuffer
-        sceneBuffer.getColorBufferTexture().bind(0);
-        ssaoShader.bind();
-        ssaoShader.setUniformi("u_depthTexture", 0);
-        ssaoShader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-
-        // Render full-screen quad with SSAO shader
-        ScreenQuad.render(ssaoShader, GL20.GL_TRIANGLES);
-
-        ssaoBuffer.end();
-
+/*
         finalBuffer.begin();
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
 
@@ -150,12 +138,12 @@ public class Main extends ApplicationAdapter {
         ScreenQuad.render(compositeShader, GL20.GL_TRIANGLES);
 
         finalBuffer.end();
-
+*/
         // Render finalBuffer to screen
 
         frameBufferShader.bind();
         frameBufferShader.setUniformi("u_texture", 0);
-        finalBuffer.getColorBufferTexture().bind(0);
+        sceneBuffer.getColorBufferTexture().bind(0);
 
         ScreenQuad.render(frameBufferShader, GL20.GL_TRIANGLES);
 
