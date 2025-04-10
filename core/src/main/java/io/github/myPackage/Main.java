@@ -13,6 +13,8 @@ import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.CubemapAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalShadowLight;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
@@ -60,6 +62,7 @@ public class Main extends ApplicationAdapter {
     private ChunkUpdater updater;
     private ColorAttribute Ambient;
     private Player player;
+
 
     int shadowRes = 8192;
     @Override
@@ -109,12 +112,22 @@ public class Main extends ApplicationAdapter {
     {
         //finalBuffer.begin();
         sceneBuffer.begin();
+
+        // Disable depth testing for the skybox
+
+
+
+
+
+
         Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         Gdx.gl.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         Gdx.gl.glEnable(GL_DEPTH_TEST);
         modelBatch.begin(cam);
         modelBatch.render(chunkInstances , environment);
+        skyBox.render(cam);
         modelBatch.end();
+
         sceneBuffer.end();
 
         //finalBuffer.end();
@@ -145,6 +158,7 @@ public class Main extends ApplicationAdapter {
 
         ScreenQuad.render(frameBufferShader, GL20.GL_TRIANGLES);
 
+
     }
     private void worldUpdate()
     {
@@ -174,7 +188,7 @@ public class Main extends ApplicationAdapter {
         environment = new Environment();
         Ambient = new ColorAttribute(ColorAttribute.AmbientLight, 0.08f, 0.05f, 0.05f, 1f);
         environment.set(Ambient);
-        sun = new DirectionalLight().set(1f, 0.8f, 0.3f, -0.5f, -1f, -0.3f);
+        sun = new DirectionalLight().set(1f, 0.8f, 0.6f, -0.5f, -1f, -0.3f);
         environment.add(sun);
 
 
@@ -204,6 +218,11 @@ public class Main extends ApplicationAdapter {
 
         initShaders();
 
+        skyBox = new SkyBox(new Pixmap(Gdx.files.internal("textures/skybox-texture.png")));
+
+
+
+
         ScreenQuad = createFullscreenQuad();
 
         // Render a full-screen quad with the SSAO effect
@@ -214,6 +233,7 @@ public class Main extends ApplicationAdapter {
 
 
     }
+    private SkyBox skyBox;
     private FrameBuffer sceneBuffer;
     private FrameBuffer ssaoBuffer;
     private FrameBuffer finalBuffer;
@@ -221,6 +241,7 @@ public class Main extends ApplicationAdapter {
     private ShaderProgram ssaoShader;
     private ShaderProgram compositeShader;
     private ShaderProgram frameBufferShader;
+    private ShaderProgram skyboxShader;
     private void initShaders()
     {
         renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
@@ -262,9 +283,18 @@ public class Main extends ApplicationAdapter {
         ssaoBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
 
         finalBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+/*
 
+        skyboxShader = new ShaderProgram(
+            Gdx.files.internal("shaders/skybox.vert"),
+            Gdx.files.internal("shaders/skybox.frag")
+        );
 
+        if (!skyboxShader.isCompiled()) {
+            throw new RuntimeException("Skybox shader compilation failed: " + skyboxShader.getLog());
+        }
 
+*/
         // Bind the depth texture and set uniforms
         ssaoBuffer.getColorBufferTexture().bind(0);
         ssaoShader.bind();
