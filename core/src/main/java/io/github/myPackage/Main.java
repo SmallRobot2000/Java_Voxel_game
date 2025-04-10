@@ -125,6 +125,7 @@ public class Main extends ApplicationAdapter {
         Gdx.gl.glEnable(GL_DEPTH_TEST);
         modelBatch.begin(cam);
         modelBatch.render(chunkInstances , environment);
+        modelBatch.render(instances, environment);
         skyBox.render(cam);
         modelBatch.end();
 
@@ -177,7 +178,7 @@ public class Main extends ApplicationAdapter {
     }
 
     private void playerInit() {
-        player = new Player(cam, myWorld);
+        player = new Player(cam, myWorld, instances);
     }
 
     private void environmentInit() {

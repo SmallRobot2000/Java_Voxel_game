@@ -21,6 +21,7 @@ public class World {
     private final Texture blocksTexture;
     private BlockSet[] globalBlockSet = new BlockSet[16];
     private Array<UnChunk> unfinishedChunks;
+    private Array<Integer> updateChunks;
     public World(long seedIn)
     {
         seed = seedIn;
@@ -253,18 +254,27 @@ public class World {
 
     public void setBlock(int x, int y, int z, short ID)
     {
-        int chX = x/16;
-        int chZ = x/16;
 
-        int lx = x % 16;
-        int lz = z % 16;
-        int ly = y;
+        int chXChk,chZChk, inChXChk, inChYChk, inChZChk;
+
+        chXChk = (int)((int)x >= 0 ? (int)x/16 : ((int)x/16)-1);
+        chZChk = (int)((int)z >= 0 ? (int)z/16 : ((int)z/16)-1);
+
+        inChXChk = (int)(((int)x) >= 0 ? ((int)x)%16 : (16 + ((int)x)%16)-1);
+        inChZChk = (int)(((int)z) >= 0 ? ((int)z)%16 : (16 + ((int)z)%16)-1);
+
+        inChYChk = (int)(y%Chunk.sizeY);
 
         for(int i = 0; i < WorldLoadedChunks.size; i ++)
         {
-            if(WorldLoadedChunks.get(i).getPosX() == chX && WorldLoadedChunks.get(i).getPosZ() == chZ)
+            if(WorldLoadedChunks.get(i).getPosX() == chXChk && WorldLoadedChunks.get(i).getPosZ() == chZChk)
             {
-                WorldLoadedChunks.get(i).setBlock(lx,ly,lz,ID);
+                WorldLoadedChunks.get(i).setBlock(inChXChk,inChYChk,inChZChk,ID);
+
+                if(!updateChunks.contains(i, true))
+                {
+                    updateChunks.add(i);
+                }
             }
         }
 
@@ -291,9 +301,14 @@ public class World {
     {
 
         int chXChk,chZChk, inChXChk, inChYChk, inChZChk;
-        chXChk = (int)(chkX >= 0 ? chkX/16 : (chkX/16)-1);
-        chZChk = (int)(chkZ >= 0 ? chkZ/16 : (chkZ/16)-1);
-        inChXChk = (int)(chkX >= 0 ? chkX%16 : 16 + chkX%16);
+        chXChk = (int)((int)chkX >= 0 ? (int)chkX/16 : ((int)chkX/16)-1);
+        chZChk = (int)((int)chkZ >= 0 ? (int)chkZ/16 : ((int)chkZ/16)-1);
+
+        inChXChk = (int)(((int)chkX) >= 0 ? ((int)chkX)%16 : (16 + ((int)chkX)%16)-1);
+        inChZChk = (int)(((int)chkZ) >= 0 ? ((int)chkZ)%16 : (16 + ((int)chkZ)%16)-1);
+
+        inChYChk = (int)(chkY%Chunk.sizeY);
+        //System.out.println("OK in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk + " CH X : " + chXChk + "CH Z : " + chZChk);
         if(chkY < 0)
         {
             return 0;
@@ -302,8 +317,17 @@ public class World {
         {
             return 0;
         }
-        inChYChk = (int)(chkY >= 0 ? chkY%Chunk.sizeY : -chkY%Chunk.sizeY);
-        inChZChk = (int)(chkZ >= 0 ? chkZ%16 : 16 + chkZ%16);
+
+
+
+
+        if(inChXChk >= 16 || inChZChk >= 16)
+        {
+            System.out.println("ERROR in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk);
+            System.out.println("X : " + chkX + " Y : " + chkY + " Z : " + chkZ);
+        }
+
+
         return this.getBlockID(chXChk, chZChk, inChXChk, inChYChk, inChZChk);
     }
 }
