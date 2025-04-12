@@ -40,7 +40,7 @@ import static com.badlogic.gdx.graphics.GL20.*;
 public class Main extends ApplicationAdapter {
     public PerspectiveCamera cam;
     //public CameraInputController camController;
-    private io.github.myPackage.FirstPersonCameraController camController;
+    private FirstPersonCameraController camController;
     public Shader shader;
     public RenderContext renderContext;
     public Model model;
@@ -73,6 +73,8 @@ public class Main extends ApplicationAdapter {
         updaterInit();
     }
     private float dir  = 0;
+    private long time = System.currentTimeMillis() + 1000;
+    private int testX = 5;
     @Override
     public void render () {
 
@@ -85,6 +87,16 @@ public class Main extends ApplicationAdapter {
         {
             dir = -1;
         }
+
+        if(System.currentTimeMillis() >= time)
+        {
+            testX--;
+            myWorld.setBlock(testX,0,0,(short)2 );
+            //System.out.println(testX);
+            time = System.currentTimeMillis() + 1000;
+        }
+
+
         //System.out.println(dir);
         worldUpdate();
         player.updatePlayer();
@@ -106,6 +118,7 @@ public class Main extends ApplicationAdapter {
         font.draw(spriteBatch, "Camera Z: " + cam.position.z, 10, Gdx.graphics.getHeight() - 52);
         font.draw(spriteBatch, "Mem: " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB", 10, Gdx.graphics.getHeight() - (52+16));
         font.draw(spriteBatch, "Camera Cx: " + (int)cam.position.x/16 + "in ch x" + cam.position.x%16, 10, Gdx.graphics.getHeight() - (52+32));
+        font.draw(spriteBatch, "TestX: " + testX, 10, Gdx.graphics.getHeight() - (52+48));
         spriteBatch.end();
     }
     private void render3D()
@@ -157,13 +170,14 @@ public class Main extends ApplicationAdapter {
         frameBufferShader.setUniformi("u_texture", 0);
         sceneBuffer.getColorBufferTexture().bind(0);
 
-        ScreenQuad.render(frameBufferShader, GL20.GL_TRIANGLES);
+        ScreenQuad.render(frameBufferShader, GL_TRIANGLES);
 
 
     }
     private void worldUpdate()
     {
-        myWorld.updateChunksModels(cam.position.x/16,cam.position.z/16);
+        //myWorld.update(cam);
+        myWorld.updateChunksMain(cam.position.x/16,cam.position.z/16);
         chunkInstances = myWorld.getInstances();
     }
     private void updaterInit() {
@@ -199,7 +213,7 @@ public class Main extends ApplicationAdapter {
         cam.near = 0.1f;
         cam.far = 300f;
         cam.update();
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glEnable(GL_DEPTH_TEST);
 
 
         ModelLoader modelLoader = new G3dModelLoader(new JsonReader());
@@ -228,7 +242,7 @@ public class Main extends ApplicationAdapter {
 
         // Render a full-screen quad with the SSAO effect
 
-        ScreenQuad.render(ssaoShader, GL20.GL_TRIANGLES);
+        ScreenQuad.render(ssaoShader, GL_TRIANGLES);
 
         System.out.println("Mem usage : " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB");
 

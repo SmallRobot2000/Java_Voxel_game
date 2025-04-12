@@ -1,6 +1,7 @@
 package io.github.myPackage;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.VertexAttributes;
@@ -13,6 +14,8 @@ import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 
+import java.awt.*;
+//TODO better physics for player
 public class Player {
     float x,y,z;
     Camera cam;
@@ -47,18 +50,20 @@ public class Player {
 
         chkX = cam.position.x;
         chkZ = cam.position.z;
-        chkY = cam.position.y-1;
-
-        camController.canXp = world.getGlobalBlockID(chkX+playerOff,chkY,chkZ) == 0;
-
-        camController.canXn = world.getGlobalBlockID(chkX-playerOff,chkY,chkZ) == 0;
-
-        camController.canZp = world.getGlobalBlockID(chkX,chkY,chkZ+playerOff) == 0;
-
-        camController.canZn = world.getGlobalBlockID(chkX,chkY,chkZ-playerOff) == 0;
+        chkY = cam.position.y+playerFeet;
 
 
-        short ID = world.getGlobalBlockID(cam.position.x,cam.position.y+playerFeet,cam.position.z);
+
+        //camController.canXp = world.getGlobalBlockID(chkX+playerOff,chkY,chkZ) == 0;
+
+        //camController.canXn = world.getGlobalBlockID(chkX-playerOff,chkY,chkZ) == 0;
+
+        //camController.canZp = world.getGlobalBlockID(chkX,chkY,chkZ+playerOff) == 0;
+
+        //camController.canZn = world.getGlobalBlockID(chkX,chkY,chkZ-playerOff) == 0;
+
+
+        short ID = world.getGlobalBlockID((int)cam.position.x,(int)(cam.position.y+playerFeet),(int)cam.position.z);
         //System.out.println("CHx " + chX + " CHz " + chZ + " Inx " + inChX +  " Iny " + inChY +  " CHz " + inChZ + "ID" + ID);
 
         camController.shoudHop = false;
@@ -71,7 +76,7 @@ public class Player {
             camController.canUp = false;
             camController.inFall = true;
         }
-        if(world.getGlobalBlockID(cam.position.x,cam.position.y+playerBottom,cam.position.z) != 0)
+        if(world.getGlobalBlockID((int)cam.position.x,(int)(cam.position.y+playerBottom),(int)cam.position.z) != 0)
         {
             camController.shoudHop = true;
         }
@@ -86,14 +91,18 @@ public class Player {
 
             looking = new Vector3((int)looking.x, (int)looking.y, (int)looking.z);
 
-            //cubeMI.transform.set(new Vector3((int)looking.x, (int)looking.y, (int)looking.z),new Quaternion(0,0,0,0));
+            cubeMI.transform.set(new Vector3((int)(looking.x+0.75f), (int)(looking.y)+0.5f, (int)(looking.z)+0.5f),new Quaternion(0,0,0,0));
 
-            //instanceArray.add(cubeMI);
+            instanceArray.add(cubeMI);
 
-            world.setBlock((int)looking.x,(int)looking.y,(int)looking.z,(short)0);
+            if(world.getGlobalBlockID((int)looking.x,(int)looking.y,(int)looking.z) != 0 && camController.button == Input.Buttons.LEFT)
+            {
+                world.setBlock((int)looking.x,(int)looking.y,(int)looking.z,(short)0);
+            }
+
 
         }
-        System.out.println(looking);
+        //System.out.println(looking);
 
 
     }
@@ -124,7 +133,7 @@ public class Player {
 
         float current_t = 0;
         while (current_t < max_distance) {
-            if (world.getGlobalBlockID(x, y, z) != 0) {
+            if (world.getGlobalBlockID((int)x, (int)y, (int)z) != 0) {
                 return new Vector3((float) cam.direction.x * current_t + cam_pos.x, (float) cam.direction.y * current_t + cam_pos.y, (float) cam.direction.z * current_t + cam_pos.z);
             }
 

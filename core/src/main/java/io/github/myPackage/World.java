@@ -2,12 +2,7 @@ package io.github.myPackage;
 
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
-import com.badlogic.gdx.graphics.g3d.Shader;
 import com.badlogic.gdx.utils.Array;
-import com.sun.org.apache.xpath.internal.operations.Mod;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class World {
     private Array<Chunk> WorldLoadedChunks = new Array<Chunk>();
@@ -20,13 +15,18 @@ public class World {
     private int textureBlockFaces = 16;
     private final Texture blocksTexture;
     private BlockSet[] globalBlockSet = new BlockSet[16];
-    private Array<UnChunk> unfinishedChunks;
-    private Array<Integer> updateChunks;
+    //private Array<UnChunk> unfinishedChunks;
+    private Array<Chunk> updateChunks;
+    private Array<Chunk> reGenChunks;
+    private Array<Chunk> reModelChunks;
     public World(long seedIn)
     {
         seed = seedIn;
         worldModelInstance = new Array<ModelInstance>();
-        unfinishedChunks = new Array<UnChunk>();
+        //unfinishedChunks = new Array<UnChunk>();
+        updateChunks = new Array<Chunk>();
+        reGenChunks = new Array<Chunk>();
+        reModelChunks = new Array<Chunk>();
         globalTextureUVS = new TextureUV[24*16];
         blocksTexture = new Texture("data/blocks.png");
 
@@ -174,6 +174,7 @@ public class World {
          return null;
     }
 
+  /*
     public void updateChunksVI(float camX, float camZ)
     {
         Array<Integer> allFx = new Array<Integer>();
@@ -223,27 +224,87 @@ public class World {
         }
 
     }
-
-    public void updateChunksModels(float camX, float camZ)
+*/
+    //in worker thread
+    public void updateChunksVI(float camX, float camZ)
     {
-
-        for (int i = 0; i < unfinishedChunks.size; i++) {
-            int x = unfinishedChunks.get(i).x;
-            int z = unfinishedChunks.get(i).z;
-
-            for(int j = 0; j < WorldLoadedChunks.size; j ++)
+        Array<Integer> allFx = new Array<Integer>();
+        Array<Integer> allFz = new Array<Integer>();
+        for (int x = 0; x < renderSize; x++)
+        {
+            for(int z = 0; z < renderSize; z++)
             {
-                if(WorldLoadedChunks.get(j).getPosX() == x && WorldLoadedChunks.get(j).getPosZ() == z)
+                int fx = ((int)camX-(renderSize -1)/2)+x;
+                int fz = ((int)camZ-(renderSize -1)/2)+z;
+                allFx.add(fx);
+                allFz.add(fz);
+                //System.out.println("At " + fx + " " + fz);
+                boolean found = false;
+                for(int i = 0; i < WorldLoadedChunks.size; i++)
                 {
+                    if(WorldLoadedChunks.get(i).getPosX() == fx && WorldLoadedChunks.get(i).getPosZ() == fz)
+                    {
+                        found = true;
+                        break;
+                    }
+                }
 
-                    WorldLoadedChunks.get(j).createInstances(x,z);
+                if(!found)
+                {
+                    Chunk tmpChunk = new Chunk(fx,fz,seed,globalTextureUVS,blocksTexture, true);
+                    updateChunks.add(tmpChunk);
+                    WorldLoadedChunks.add(tmpChunk);
+                    //WorldLoadedChunks.get(WorldLoadedChunks.indexOf(tmpChunk, true)).createVI();  //Redundant?
 
 
                 }
             }
+        }
+
+        for(int i = 0; i < WorldLoadedChunks.size; i ++)
+        {
+            if(!(allFx.contains(WorldLoadedChunks.get(i).getPosX(), true) && allFz.contains(WorldLoadedChunks.get(i).getPosZ(), true)))
+            {
+                //System.out.println("Removing chunk " + WorldLoadedChunks.get(i).getPosX() + " " + WorldLoadedChunks.get(i).getPosZ());
+                WorldLoadedChunks.removeIndex(i);   //remove unloaded chunks
+            }
+        }
+        synchronized (reGenChunks)
+        {
+            for(Chunk currChk:reGenChunks)
+            {
+                short[][][] tmpBlocks = currChk.blocks;
+                int x = currChk.getPosX();
+                int z = currChk.getPosZ();
+                //WorldLoadedChunks.removeIndex(WorldLoadedChunks.indexOf(currChk, false));
+                //currChk = new Chunk(x,z,seed, globalTextureUVS,blocksTexture, true, tmpBlocks);
+                //WorldLoadedChunks.add(currChk);
+                currChk.regenVI();
+                currChk.getChnkIstances().clear();
+                updateChunks.add(currChk);
+                reGenChunks.clear();
+            }
 
         }
-        unfinishedChunks.clear();
+
+
+
+
+
+    }
+    //In main thread
+    public void updateChunksMain(float camX, float camZ)
+    {
+        synchronized (updateChunks)
+        {
+            for(Chunk currChunk:updateChunks)
+            {
+                currChunk.createInstances();
+            }
+        }
+
+
+        updateChunks.clear();
         worldModelInstance.clear();
         for (Chunk currChunk:WorldLoadedChunks)
         {
@@ -257,13 +318,17 @@ public class World {
 
         int chXChk,chZChk, inChXChk, inChYChk, inChZChk;
 
-        chXChk = (int)((int)x >= 0 ? (int)x/16 : ((int)x/16)-1);
-        chZChk = (int)((int)z >= 0 ? (int)z/16 : ((int)z/16)-1);
+        chXChk = (x >= 0 ? x/16 : (x/16)-1);
+        chZChk = (z >= 0 ? z/16 : (z/16)-1);
 
-        inChXChk = (int)(((int)x) >= 0 ? ((int)x)%16 : (16 + ((int)x)%16)-1);
-        inChZChk = (int)(((int)z) >= 0 ? ((int)z)%16 : (16 + ((int)z)%16)-1);
+        inChXChk = (x >= 0 ? x%16 : (16 + x%16) & 0x0F);
+        inChZChk = (z >= 0 ? z%16 : (16 + z%16) & 0x0F);
 
         inChYChk = (int)(y%Chunk.sizeY);
+
+        //System.out.println("X : " + x + " Y : " + y + " z : " + z);
+        //System.out.println("CX : " + chXChk + " CZ : " + chZChk + "\nIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
+
 
         for(int i = 0; i < WorldLoadedChunks.size; i ++)
         {
@@ -271,10 +336,21 @@ public class World {
             {
                 WorldLoadedChunks.get(i).setBlock(inChXChk,inChYChk,inChZChk,ID);
 
-                if(!updateChunks.contains(i, true))
+                boolean foundAllReady = false;
+                for(int j = 0; j < reGenChunks.size; j++)
                 {
-                    updateChunks.add(i);
+                    if(reGenChunks.get(j).getPosX() == chXChk && reGenChunks.get(j).getPosZ() == chZChk)
+                    {
+                        foundAllReady = true;
+                    }
                 }
+                if(!foundAllReady)
+                {
+                    //WorldLoadedChunks.removeIndex(i);
+
+                    reGenChunks.add(WorldLoadedChunks.get(i));
+                }
+
             }
         }
 
@@ -297,41 +373,34 @@ public class World {
         return 0;
     }
 
-    public short getGlobalBlockID(float chkX, float chkY, float chkZ)
+    public short getGlobalBlockID(int x, int y, int z)
     {
 
         int chXChk,chZChk, inChXChk, inChYChk, inChZChk;
-        chXChk = (int)((int)chkX >= 0 ? (int)chkX/16 : ((int)chkX/16)-1);
-        chZChk = (int)((int)chkZ >= 0 ? (int)chkZ/16 : ((int)chkZ/16)-1);
 
-        inChXChk = (int)(((int)chkX) >= 0 ? ((int)chkX)%16 : (16 + ((int)chkX)%16)-1);
-        inChZChk = (int)(((int)chkZ) >= 0 ? ((int)chkZ)%16 : (16 + ((int)chkZ)%16)-1);
+        chXChk = (x >= 0 ? x/16 : (x/16)-1);
+        chZChk = (z >= 0 ? z/16 : (z/16)-1);
 
-        inChYChk = (int)(chkY%Chunk.sizeY);
+        inChXChk = (x >= 0 ? x%16 : (16 + x%16) & 0x0F);
+        inChZChk = (z >= 0 ? z%16 : (16 + z%16) & 0x0F);
+
+        inChYChk = (int)(y%Chunk.sizeY);
+
+        System.out.println("X : " + x + " Y : " + y + " z : " + z);
+        //System.out.println("CX : " + chXChk + " CZ : " + chZChk + "\nIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
+
         //System.out.println("OK in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk + " CH X : " + chXChk + "CH Z : " + chZChk);
-        if(chkY < 0)
+
+        if(y < 0)
         {
             return 0;
-        }
-        if(chkY >= Chunk.sizeY)
-        {
-            return 0;
-        }
-
-
-
-
-        if(inChXChk >= 16 || inChZChk >= 16)
-        {
-            System.out.println("ERROR in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk);
-            System.out.println("X : " + chkX + " Y : " + chkY + " Z : " + chkZ);
         }
 
 
         return this.getBlockID(chXChk, chZChk, inChXChk, inChYChk, inChZChk);
     }
 }
-class UnChunk {
+class ChunkUpdate {
     public int x;
     public int z;
 }
