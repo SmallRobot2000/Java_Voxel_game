@@ -19,7 +19,7 @@ public class Chunk {
     private Array<ModelInstance> chnkIstances = new Array<ModelInstance>();
     private ModelBuilder modelBuilder;
     private Model chunMmodel;
-    private short[][][] blocks;
+    public short[][][] blocks;
 
     private Array<Float> vertices = new Array<Float>();
     private int posX;
@@ -126,14 +126,48 @@ public class Chunk {
 
 
     }
+
+    public Chunk(int cOffx, int cOffz, long seed, TextureUV[] textureUVS, Texture blocksTexture, boolean onlyVI, short[][][] bolcksArray)
+    {
+        //modelBuilder = new ModelBuilder();
+        //Box = modelBuilder.createBox(1,1,1,
+        //    new Material(ColorAttribute.createDiffuse(Color.GREEN)),
+        //    VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal);
+        posX = cOffx;
+        posZ = cOffz;
+        this.textureUVS = textureUVS;
+        this.blocksTexture = blocksTexture;
+        this.blocks = bolcksArray;
+
+        if(onlyVI)
+        {
+            createVI();
+        }else if (indicesArr != null && verticesArr != null){
+
+            chunMmodel = createModel();
+            chnkIstances.add(new ModelInstance(chunMmodel, cOffx*size, 0, cOffz*size));
+        }
+
+
+
+    }
     public void createInstances(float cOffx, float cOffz)
     {
+        chunMmodel.dispose();
         chunMmodel = createModel();
+        chnkIstances.clear();
         chnkIstances.add(new ModelInstance(chunMmodel, cOffx*size, 0, cOffz*size));
+    }
+
+    public void createInstances()
+    {
+        chunMmodel = createModel();
+        chnkIstances.clear();
+        chnkIstances.add(new ModelInstance(chunMmodel, posX*size, 0, posZ*size));
     }
     public void setBlock(int x, int y, int z, short id) {
         this.blocks[x][y][z] = id;
-        createMy(posX,posZ);
+        //createMy(posX,posZ);
     }
 
     public Array<ModelInstance> getChnkIstances() {
@@ -158,15 +192,18 @@ public class Chunk {
             return createModel();
 
         }
-
+    private Mesh chunkMesh;
     public Model createModel() {
-        Mesh mesh = new Mesh(true, verticesArr.length, indicesArr.length,
+        if(chunkMesh != null){chunkMesh.dispose();}
+        chunkMesh = new Mesh(true, verticesArr.length, indicesArr.length,
             new VertexAttribute(VertexAttributes.Usage.Position, 3, ShaderProgram.POSITION_ATTRIBUTE),
             new VertexAttribute(VertexAttributes.Usage.Normal, 3, ShaderProgram.NORMAL_ATTRIBUTE),
             new VertexAttribute(VertexAttributes.Usage.TextureCoordinates,2,ShaderProgram.TEXCOORD_ATTRIBUTE + "0"));
 
-        mesh.setVertices(verticesArr);
-        mesh.setIndices(indicesArr);
+
+        chunkMesh.setVertices(verticesArr);
+        //System.out.println(indicesArr.length);
+        chunkMesh.setIndices(indicesArr);
 
 
         Material material = new Material();
@@ -178,10 +215,10 @@ public class Chunk {
         //material.set(attribute);
         modelBuilder = new ModelBuilder();
         modelBuilder.begin();// begin it
-        modelBuilder.part("plane", mesh,
+        modelBuilder.part("plane", chunkMesh,
             GL20.GL_TRIANGLES ,
             0,
-            mesh.getNumIndices(),
+            chunkMesh.getNumIndices(),
             material); // creates your mesh
 
         // makes the model
@@ -202,26 +239,13 @@ public class Chunk {
 
         Array<Short> indices = new Array<Short>();
 
-        //Array<Float> vertices = new Array<Float>();
         vertices.clear();
-        //FloatBuffer vertices;
 
-        int width = size+1;
-        int height = sizeY+1;
-        int depth = size+1;
-        int devisions = size;
-        int devisionsY = sizeY;
-        int[][][] vertIndex = new int[width][height][depth];
+
+        indices.clear();
 
 
 
-        float dx = (float)width/devisions;
-        float dz = (float)height/devisions;
-        float dy = (float)depth/devisionsY;
-        Noise n = new Noise(null, 1.0f, 128, 128);
-        n.initialise();
-        float[][] noise = new float[32][32];
-        noise = n.toFloats();
 
         int curIndx = 0;
 
@@ -657,6 +681,14 @@ public class Chunk {
 
     public short getBlock(int x, int y, int z) {
         return blocks[x][y][z];
+    }
+
+    public void regenVI() {
+        //chunMmodel.dispose();
+        vertices.clear();
+        vertices = new Array<Float>();
+
+        createVI();
     }
 }
 class TextureUV{

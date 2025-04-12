@@ -30,6 +30,7 @@ public class ChunkUpdater implements Runnable {
 
     @Override
     public void run() {
+
         while (isRunning) {
             // 2. Synchronize camera position access
             float x, z;

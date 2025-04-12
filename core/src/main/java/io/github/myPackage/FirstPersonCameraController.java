@@ -17,6 +17,7 @@
 package io.github.myPackage;
 
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Input;
 import com.badlogic.gdx.Input.Keys;
 import com.badlogic.gdx.InputAdapter;
 import com.badlogic.gdx.graphics.Camera;
@@ -45,6 +46,8 @@ public class FirstPersonCameraController extends InputAdapter {
     private float velocityDown;
 
     public boolean canUp = false, inFall = true, canXp = false, canXn = false, canZp = false, canZn = false, shoudHop = false;
+    public int button;
+
     public FirstPersonCameraController (Camera camera) {
         this.camera = camera;
         cursorChaced = true;
@@ -92,6 +95,34 @@ public class FirstPersonCameraController extends InputAdapter {
 
 
         return true;
+    }
+
+    @Override
+    public boolean touchDragged(int screenX, int screenY, int pointer) {
+        float deltaX = -Gdx.input.getDeltaX() * degreesPerPixel;
+        float deltaY = -Gdx.input.getDeltaY() * degreesPerPixel;
+
+        if(cursorChaced)
+        {
+            camera.direction.rotate(camera.up, deltaX);
+            tmp.set(camera.up).crs(camera.direction).nor();
+            camera.direction.rotate(tmp, -deltaY);
+        }
+
+
+        return true;
+    }
+
+    @Override
+    public boolean touchDown(int screenX, int screenY, int pointer, int button) {
+        this.button = button;
+        return false;
+    }
+
+    @Override
+    public boolean touchUp(int screenX, int screenY, int pointer, int button) {
+        this.button = -1;
+        return false;
     }
 
     public void update () {
@@ -220,7 +251,7 @@ public class FirstPersonCameraController extends InputAdapter {
             tmp.z = tmp.z * (canForwardZ ? 1f : 0f);
             tmp.nor().scl(deltaTime * velocity);
             camera.position.add(tmp);
-            System.out.println(camera.direction);
+            //System.out.println(camera.direction);
         }
         if (keys.containsKey(backwardKey)) {
             tmp.set(camera.direction).nor();

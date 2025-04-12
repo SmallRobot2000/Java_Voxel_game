@@ -7,11 +7,14 @@ import com.badlogic.gdx.graphics.PerspectiveCamera;
 
 import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.Gdx.*;
 import com.badlogic.gdx.graphics.*;
 import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g3d.*;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.CubemapAttribute;
+import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight;
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalShadowLight;
 import com.badlogic.gdx.graphics.g3d.environment.PointLight;
@@ -19,6 +22,7 @@ import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader;
 import com.badlogic.gdx.graphics.g3d.model.NodePart;
 import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
 import com.badlogic.gdx.graphics.g3d.utils.*;
+import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
@@ -29,15 +33,14 @@ import java.nio.FloatBuffer;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
 
-import static com.badlogic.gdx.graphics.GL20.GL_COLOR_BUFFER_BIT;
-import static com.badlogic.gdx.graphics.GL20.GL_DEPTH_BUFFER_BIT;
+import static com.badlogic.gdx.graphics.GL20.*;
 
 
 /** {@link ApplicationListener} implementation shared by all platforms. */
 public class Main extends ApplicationAdapter {
     public PerspectiveCamera cam;
     //public CameraInputController camController;
-    private io.github.myPackage.FirstPersonCameraController camController;
+    private FirstPersonCameraController camController;
     public Shader shader;
     public RenderContext renderContext;
     public Model model;
@@ -59,38 +62,150 @@ public class Main extends ApplicationAdapter {
     private ChunkUpdater updater;
     private ColorAttribute Ambient;
     private Player player;
+
+
     int shadowRes = 8192;
     @Override
     public void create () {
+        environmentInit();
+        worldInit();
+        playerInit();
+        updaterInit();
+    }
+    private float dir  = 0;
+    private long time = System.currentTimeMillis() + 1000;
+    private int testX = 5;
+    @Override
+    public void render () {
 
+
+        x++;
+        dir += 0.01f;
+        //shadowLight.setDirection(-0.5f, -1f, dir);
+        //Ambient.color.r = dir;
+        if(dir >= 1)
+        {
+            dir = -1;
+        }
+
+        if(System.currentTimeMillis() >= time)
+        {
+            testX--;
+            myWorld.setBlock(testX,0,0,(short)2 );
+            //System.out.println(testX);
+            time = System.currentTimeMillis() + 1000;
+        }
+
+
+        //System.out.println(dir);
+        worldUpdate();
+        player.updatePlayer();
+
+
+
+        render3D();
+
+        renderScreenText2D();
+
+    }
+    private void renderScreenText2D()
+    {
+        spriteBatch.begin();
+        font.draw(spriteBatch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 10, Gdx.graphics.getHeight() - 10);
+
+        font.draw(spriteBatch, "Camera X: " + cam.position.x, 10, Gdx.graphics.getHeight() - 20);
+        font.draw(spriteBatch, "Camera Y: " + cam.position.y, 10, Gdx.graphics.getHeight() - 36);
+        font.draw(spriteBatch, "Camera Z: " + cam.position.z, 10, Gdx.graphics.getHeight() - 52);
+        font.draw(spriteBatch, "Mem: " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB", 10, Gdx.graphics.getHeight() - (52+16));
+        font.draw(spriteBatch, "Camera Cx: " + (int)cam.position.x/16 + "in ch x" + cam.position.x%16, 10, Gdx.graphics.getHeight() - (52+32));
+        font.draw(spriteBatch, "TestX: " + testX, 10, Gdx.graphics.getHeight() - (52+48));
+        spriteBatch.end();
+    }
+    private void render3D()
+    {
+        //finalBuffer.begin();
+        sceneBuffer.begin();
+
+        // Disable depth testing for the skybox
+
+
+
+
+
+
+        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        Gdx.gl.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        Gdx.gl.glEnable(GL_DEPTH_TEST);
+        modelBatch.begin(cam);
+        modelBatch.render(chunkInstances , environment);
+        modelBatch.render(instances, environment);
+        skyBox.render(cam);
+        modelBatch.end();
+
+        sceneBuffer.end();
+
+        //finalBuffer.end();
+
+/*
+        finalBuffer.begin();
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT | GL20.GL_DEPTH_BUFFER_BIT);
+
+
+        // Bind both scene color and SSAO textures
+        sceneBuffer.getColorBufferTexture().bind(0);
+        ssaoBuffer.getColorBufferTexture().bind(1);
+
+        compositeShader.bind();
+        compositeShader.setUniformi("u_sceneTexture", 0);
+        compositeShader.setUniformi("u_ssaoTexture", 1);
+
+        // Render full-screen quad with composite shader
+        ScreenQuad.render(compositeShader, GL20.GL_TRIANGLES);
+
+        finalBuffer.end();
+*/
+        // Render finalBuffer to screen
+
+        frameBufferShader.bind();
+        frameBufferShader.setUniformi("u_texture", 0);
+        sceneBuffer.getColorBufferTexture().bind(0);
+
+        ScreenQuad.render(frameBufferShader, GL_TRIANGLES);
+
+
+    }
+    private void worldUpdate()
+    {
+        //myWorld.update(cam);
+        myWorld.updateChunksMain(cam.position.x/16,cam.position.z/16);
+        chunkInstances = myWorld.getInstances();
+    }
+    private void updaterInit() {
+        updater = new ChunkUpdater(cam, myWorld);
+        updateThread = new Thread(updater);
+        updateThread.start();
+    }
+
+    private void worldInit() {
+        myWorld = new World(12);
+        myWorld.updateDrawnChunks(0,0);
+    }
+
+    private void playerInit() {
+        player = new Player(cam, myWorld, instances);
+    }
+
+    private void environmentInit() {
 
         modelBatch = new ModelBatch();
         font = new BitmapFont();
         spriteBatch = new SpriteBatch();
         environment = new Environment();
-        Ambient = new ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f);
-        //environment.set(Ambient);
-        sun = new DirectionalLight().set(1f, 0.8f, 0.3f, -0.5f, -1f, -0.3f);
+        Ambient = new ColorAttribute(ColorAttribute.AmbientLight, 0.08f, 0.05f, 0.05f, 1f);
+        environment.set(Ambient);
+        sun = new DirectionalLight().set(1f, 0.8f, 0.6f, -0.5f, -1f, -0.3f);
         environment.add(sun);
 
-        // Create a shadow light with specified resolution and frustum dimensions
-        shadowLight = new DirectionalShadowLight(shadowRes*4, shadowRes*4, 600f, 600f, 0.1f, 100f);
-        
-        // Set the light direction and color
-        shadowLight.set(0.0f, 0.0f, 0.0f, -0.5f, -1f, -0.3f);
-
-
-
-        // Add the shadow light to your environment
-        environment.add(shadowLight);
-        // Set the shadow map in your environment
-        environment.shadowMap = shadowLight;
-
-
-
-
-
-        shadowBatch = new ModelBatch(new DepthShaderProvider());
 
         cam = new PerspectiveCamera(67, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
         cam.position.set(2f, 10f, 2f);
@@ -98,7 +213,7 @@ public class Main extends ApplicationAdapter {
         cam.near = 0.1f;
         cam.far = 300f;
         cam.update();
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST);
+        Gdx.gl.glEnable(GL_DEPTH_TEST);
 
 
         ModelLoader modelLoader = new G3dModelLoader(new JsonReader());
@@ -113,93 +228,124 @@ public class Main extends ApplicationAdapter {
         renderable.environment = environment;
         renderable.worldTransform.idt();
 
+
+
+
+        initShaders();
+
+        skyBox = new SkyBox(new Pixmap(Gdx.files.internal("textures/skybox-texture.png")));
+
+
+
+
+        ScreenQuad = createFullscreenQuad();
+
+        // Render a full-screen quad with the SSAO effect
+
+        ScreenQuad.render(ssaoShader, GL_TRIANGLES);
+
+        System.out.println("Mem usage : " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB");
+
+
+    }
+    private SkyBox skyBox;
+    private FrameBuffer sceneBuffer;
+    private FrameBuffer ssaoBuffer;
+    private FrameBuffer finalBuffer;
+    private Mesh ScreenQuad; // Create a simple full-screen quad mesh
+    private ShaderProgram ssaoShader;
+    private ShaderProgram compositeShader;
+    private ShaderProgram frameBufferShader;
+    private ShaderProgram skyboxShader;
+    private void initShaders()
+    {
         renderContext = new RenderContext(new DefaultTextureBinder(DefaultTextureBinder.LRU, 1));
         shader = new DefaultShader(renderable);
         shader.init();
 
-        System.out.println("Mem usage : " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB");
 
 
-
-        myWorld = new World(12);
-        player = new Player(cam, myWorld);
+        ssaoShader = new ShaderProgram(Gdx.files.internal("shaders/ssao.vert"), Gdx.files.internal("shaders/ssao.frag"));
 
 
-
-
-
-
-        System.out.println("Mem usage : " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB");
-
-
-        //    instances.add(new ModelInstance(model));
-        myWorld.updateDrawnChunks(0,0);
-        //Thread for updating
-        updater = new ChunkUpdater(cam, myWorld);
-        updateThread = new Thread(updater);
-        updateThread.start();
-
-
-        //chunkInstances = updater.getupdatedInstances().get();
-
-        //NodePart blockPart = model.getNode("plane").parts.get(0);
-
-    }
-
-
-    private float dir  = 0;
-    @Override
-    public void render () {
-
-
-        x++;
-        dir += 0.01f;
-         shadowLight.setDirection(-0.5f, -1f, dir);
-        //Ambient.color.r = dir;
-        if(dir >= 1)
-        {
-            dir = -1;
+        if (!ssaoShader.isCompiled()) {
+            throw new RuntimeException("SSAO Shader Compilation Failed: " + ssaoShader.getLog());
         }
-        //System.out.println(dir);
 
-        myWorld.updateChunksModels(cam.position.x/16,cam.position.z/16);
-        chunkInstances = myWorld.getInstances();
-        player.updatePlayer();
+        // Load shader files
+        String compositeVert = Gdx.files.internal("shaders/composite.vert").readString();
+        String compositeFrag = Gdx.files.internal("shaders/composite.frag").readString();
 
-        //create shadow texture
-        //shadowLight.begin(Vector3.Zero, cam.direction);
-        //shadowBatch.begin(shadowLight.getCamera());
+        compositeShader = new ShaderProgram(compositeVert, compositeFrag);
 
-        //shadowBatch.render(instances);
+        // Check for errors
+        if (!compositeShader.isCompiled()) {
+            throw new RuntimeException("Composite shader failed: " + compositeShader.getLog());
+        }
 
-        //shadowBatch.end();
-        //shadowLight.end();
 
-        // Begin shadow rendering
-        shadowLight.begin(Vector3.Zero, cam.direction);
-        shadowBatch.begin(shadowLight.getCamera());
-        shadowBatch.render(chunkInstances, environment);
-        shadowBatch.end();
-        shadowLight.end();
+        String finalVert = Gdx.files.internal("shaders/post.vert").readString();
+        String finalFrag = Gdx.files.internal("shaders/post.frag").readString();
 
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
-        Gdx.gl.glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        frameBufferShader = new ShaderProgram(finalVert, finalFrag);
 
-        modelBatch.begin(cam);
-        //modelBatch.render(instances, environment);
-        modelBatch.render(chunkInstances , environment);
-        modelBatch.end();
+        if (!frameBufferShader.isCompiled()) {
+            throw new RuntimeException("Frame shader failed: " + frameBufferShader.getLog());
+        }
 
-        spriteBatch.begin();
-        font.draw(spriteBatch, "FPS: " + Gdx.graphics.getFramesPerSecond(), 10, Gdx.graphics.getHeight() - 10);
+        sceneBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), true);
 
-        font.draw(spriteBatch, "Camera X: " + cam.position.x, 10, Gdx.graphics.getHeight() - 20);
-        font.draw(spriteBatch, "Camera Y: " + cam.position.y, 10, Gdx.graphics.getHeight() - 36);
-        font.draw(spriteBatch, "Camera Z: " + cam.position.z, 10, Gdx.graphics.getHeight() - 52);
-        font.draw(spriteBatch, "Mem: " + (float)((Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory())/1024)/1024 + "MB", 10, Gdx.graphics.getHeight() - (52+16));
-        font.draw(spriteBatch, "Camera Cx: " + (int)cam.position.x/16 + "in ch x" + cam.position.x%16, 10, Gdx.graphics.getHeight() - (52+32));
-        spriteBatch.end();
+        ssaoBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+
+        finalBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.getWidth(), Gdx.graphics.getHeight(), false);
+/*
+
+        skyboxShader = new ShaderProgram(
+            Gdx.files.internal("shaders/skybox.vert"),
+            Gdx.files.internal("shaders/skybox.frag")
+        );
+
+        if (!skyboxShader.isCompiled()) {
+            throw new RuntimeException("Skybox shader compilation failed: " + skyboxShader.getLog());
+        }
+
+*/
+        // Bind the depth texture and set uniforms
+        ssaoBuffer.getColorBufferTexture().bind(0);
+        ssaoShader.bind();
+        //ssaoShader.setUniformi("u_depthTexture", 0);
+        //ssaoShader.setUniformf("u_resolution", Gdx.graphics.getWidth(), Gdx.graphics.getHeight());
+        //ssaoShader.setUniformf("u_radius", 5.0f);
+
+
+
+        // Create shader program
+
+
+
     }
+    private Mesh createFullscreenQuad() {
+        float[] vertices = {
+            -1f, -1f, 0f, 0f, 0f,
+            1f, -1f, 0f, 1f, 0f,
+            1f,  1f, 0f, 1f, 1f,
+            -1f,  1f, 0f, 0f, 1f,
+        };
+
+        short[] indices = {0, 1, 2, 2, 3, 0};
+
+        Mesh mesh = new Mesh(true, vertices.length / 5, indices.length,
+            new VertexAttribute(VertexAttributes.Usage.Position, 3, "a_position"),
+            new VertexAttribute(VertexAttributes.Usage.TextureCoordinates, 2, "a_texCoord0"));
+
+        mesh.setVertices(vertices);
+        mesh.setIndices(indices);
+
+        return mesh;
+    }
+
+
+
 
     @Override
     public void dispose () {
