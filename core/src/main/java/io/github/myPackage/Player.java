@@ -24,6 +24,21 @@ public class Player {
     private final FirstPersonCameraController camController;
     private Array<ModelInstance> instanceArray;
     private Model cube;
+    public Vector3 playerPos = new Vector3(0, 10, 0);
+    public Vector3 playerPosBlock = playerPos;
+    private Vector3 wantedDir;
+    private float playerFeetOffToCam = 1.75f;
+    private float velocityH = 0;
+    private float velocityV = 0;
+    private final float velocityHCap = 20f;
+    private final float velocityVCap = 30f;
+    private float Gacc = 9.81f;
+    private float horizontalAcc = 5*Gacc;
+    private float horizontalDeAcc = 3*Gacc;
+
+    private Vector3 tmp = new Vector3();
+    private Vector3 tmpWantedDir = new Vector3();
+    private Vector3 velocity = new Vector3();
     Player(Camera cm, World wrld, Array<ModelInstance> instances)
     {
         this.cam = cm;
@@ -38,50 +53,50 @@ public class Player {
         ModelBuilder mb = new ModelBuilder();
         cube = mb.createBox(1.2f, 1.2f, 1.2f, new Material(ColorAttribute.createDiffuse(Color.BLUE)),
             VertexAttributes.Usage.Position | VertexAttributes.Usage.Normal);
+
+        this.cam.position.x = playerPos.x;
+        this.cam.position.y = playerPos.y-playerFeetOffToCam;
+        this.cam.position.z = playerPos.z;
     }
 
     public void updatePlayer() {
         float playerOff = 0.25f;
-        float playerFeet = -2f;
-        float playerBottom = playerFeet+1;
-        float chkX, chkZ, chkY;
-
-
-
-        chkX = cam.position.x;
-        chkZ = cam.position.z;
-        chkY = cam.position.y+playerFeet;
-
-
-
-        //camController.canXp = world.getGlobalBlockID(chkX+playerOff,chkY,chkZ) == 0;
-
-        //camController.canXn = world.getGlobalBlockID(chkX-playerOff,chkY,chkZ) == 0;
-
-        //camController.canZp = world.getGlobalBlockID(chkX,chkY,chkZ+playerOff) == 0;
-
-        //camController.canZn = world.getGlobalBlockID(chkX,chkY,chkZ-playerOff) == 0;
-
-
-        short ID = world.getGlobalBlockID((int)cam.position.x,(int)(cam.position.y+playerFeet),(int)cam.position.z);
-        //System.out.println("CHx " + chX + " CHz " + chZ + " Inx " + inChX +  " Iny " + inChY +  " CHz " + inChZ + "ID" + ID);
-
-        camController.shoudHop = false;
-        if(ID != 0)
-        {
-            //System.out.println("YES");
-            camController.canUp = true;
-            camController.inFall = false;
-        }else{
-            camController.canUp = false;
-            camController.inFall = true;
-        }
-        if(world.getGlobalBlockID((int)cam.position.x,(int)(cam.position.y+playerBottom),(int)cam.position.z) != 0)
-        {
-            camController.shoudHop = true;
-        }
+        float deltaTime = Gdx.graphics.getDeltaTime();
 
         camController.update();
+        wantedDir = camController.wantedDir;
+
+        if(wantedDir.x != 0 || wantedDir.y != 0 || wantedDir.z != 0)
+        {
+            velocity.add(wantedDir.nor().scl(horizontalAcc*deltaTime));
+
+        }else{
+
+            tmp.set(velocity);
+            tmp.nor().scl(horizontalDeAcc*deltaTime);
+            velocity.sub(tmp);
+            if(Math.abs(velocity.x) < 0.5 && Math.abs(velocity.y) < 0.5 && Math.abs(velocity.z) < 0.5)
+            {
+                velocity.setZero();
+            }
+            tmp.set(velocity);
+
+
+        }
+        //System.out.println(tmpWantedDir);
+
+
+        //velocity.clamp(-velocityHCap, velocityHCap);
+        velocity.limit(velocityHCap);
+        tmp.set(velocity);
+        playerPos.add(tmp.scl(deltaTime));
+        cam.position.set(playerPos).add(0, playerFeetOffToCam, 0);
+
+
+
+
+
+
         Vector3 looking = lookingAt();
         instanceArray.clear();
         if(looking != null)
@@ -104,7 +119,7 @@ public class Player {
         }
         //System.out.println(looking);
 
-
+        camController.update(); // One more time because FOV and skybox breaks
     }
     private final float max_distance = 5;
     private Vector3 lookingAt()

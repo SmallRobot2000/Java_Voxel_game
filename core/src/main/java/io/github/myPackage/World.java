@@ -386,7 +386,7 @@ public class World {
 
         inChYChk = (int)(y%Chunk.sizeY);
 
-        System.out.println("X : " + x + " Y : " + y + " z : " + z);
+        //System.out.println("X : " + x + " Y : " + y + " z : " + z);
         //System.out.println("CX : " + chXChk + " CZ : " + chZChk + "\nIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
 
         //System.out.println("OK in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk + " CH X : " + chXChk + "CH Z : " + chZChk);

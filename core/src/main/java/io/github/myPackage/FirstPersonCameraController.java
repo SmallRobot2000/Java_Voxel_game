@@ -47,10 +47,12 @@ public class FirstPersonCameraController extends InputAdapter {
 
     public boolean canUp = false, inFall = true, canXp = false, canXn = false, canZp = false, canZn = false, shoudHop = false;
     public int button;
+    public Vector3 wantedDir;
 
     public FirstPersonCameraController (Camera camera) {
         this.camera = camera;
         cursorChaced = true;
+        wantedDir = new Vector3(0,0,0);
         Gdx.input.setCursorCatched(cursorChaced);
         Gdx.input.setCursorPosition(0, 0);
     }
@@ -126,12 +128,62 @@ public class FirstPersonCameraController extends InputAdapter {
     }
 
     public void update () {
-        update(Gdx.graphics.getDeltaTime());
-    }
 
+        wantedDir.set(0,0,0);
+
+        if (keys.containsKey(strafeLeftKey)) {
+            tmp.set(camera.direction);
+            wantedDir.add(tmp.crs(camera.up).scl(-1)); //90 to the left
+        }
+        if (keys.containsKey(strafeRightKey)) {
+            tmp.set(camera.direction);
+            wantedDir.add(tmp.crs(camera.up)); //90 to the left
+
+        }
+        if (keys.containsKey(forwardKey)) {
+            tmp.set(camera.direction);
+            tmp.y = 0;
+            tmp.nor();
+            wantedDir.add(tmp); //90 to the left
+        }
+        if (keys.containsKey(backwardKey)) {
+            tmp.set(camera.direction);
+            tmp.y = 0;
+            tmp.nor();
+            wantedDir.add(tmp.scl(-1)); //90 to the left
+        }
+        wantedDir.nor();
+        wantedDir.y = 0;
+        if (keys.containsKey(upKey)) {
+            wantedDir.y = 1;
+        }
+
+        //System.out.println(wantedDir);
+
+        if (keys.containsKey(Keys.ESCAPE)) {
+            ESC_pressed = true;
+        }else{
+            ESC_pressed = false;
+        }
+
+        if(ESC_pressed_old == false && ESC_pressed == true)
+        {
+            cursorChaced = !cursorChaced;
+
+            Gdx.input.setCursorCatched(cursorChaced);
+            if(!cursorChaced)
+            {
+                Gdx.input.setCursorPosition(Gdx.graphics.getWidth()/2, Gdx.graphics.getHeight()/2);
+            }
+        }
+
+        ESC_pressed_old = ESC_pressed;
+        if (autoUpdate) camera.update(true);
+    }
+/*
     public void update (float deltaTime) {
 
-        if(shoudHop)
+        /*if(shoudHop)
         {
             camera.position.y += 0.5f;
         }
@@ -283,11 +335,16 @@ public class FirstPersonCameraController extends InputAdapter {
         if (keys.containsKey(downKey)) {
             tmp.set(camera.up).nor().scl(-deltaTime * velocity);
             camera.position.add(tmp);
-        }
+        }*/
 
-        tmp.set(camera.up).nor().scl(-deltaTime * velocityDown);
-        camera.position.add(tmp);
-        if (keys.containsKey(Keys.ESCAPE)) {
+        //tmp.set(camera.up).nor().scl(-deltaTime * velocityDown);
+        //camera.position.add(tmp);
+
+
+
+
+
+        /*if (keys.containsKey(Keys.ESCAPE)) {
             ESC_pressed = true;
         }else{
             ESC_pressed = false;
@@ -305,8 +362,9 @@ public class FirstPersonCameraController extends InputAdapter {
         }
 
         ESC_pressed_old = ESC_pressed;
-        if (autoUpdate) camera.update(true);
+        if (autoUpdate) camera.update(true);*/
 
-
+    /*
     }
+    */
 }
