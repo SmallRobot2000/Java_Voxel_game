@@ -77,7 +77,8 @@ public class Main extends ApplicationAdapter {
     private int testX = 5;
     @Override
     public void render () {
-
+        worldUpdate();
+        player.updatePlayer();
 
         x++;
         dir += 0.01f;
@@ -98,8 +99,7 @@ public class Main extends ApplicationAdapter {
 
 
         //System.out.println(dir);
-        worldUpdate();
-        player.updatePlayer();
+
 
 
 
