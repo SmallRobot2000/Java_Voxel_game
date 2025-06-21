@@ -273,12 +273,7 @@ public class World {
         {
             for(Chunk currChk:reGenChunks)
             {
-                short[][][] tmpBlocks = currChk.blocks;
-                int x = currChk.getPosX();
-                int z = currChk.getPosZ();
-                //WorldLoadedChunks.removeIndex(WorldLoadedChunks.indexOf(currChk, false));
-                //currChk = new Chunk(x,z,seed, globalTextureUVS,blocksTexture, true, tmpBlocks);
-                //WorldLoadedChunks.add(currChk);
+
                 currChk.regenVI();
                 currChk.getChnkIstances().clear();
                 updateChunks.add(currChk);
@@ -361,43 +356,47 @@ public class World {
         return worldModelInstance;
     }
 
-    public short getBlockID(int chx, int chz, int icx, int icy,int icz)
+    public Block getBlockObject(int chx, int chz, int icx, int icy,int icz)
     {
         for(int i = 0; i < WorldLoadedChunks.size; i ++)
         {
             if(WorldLoadedChunks.get(i).getPosX() == chx && WorldLoadedChunks.get(i).getPosZ() == chz)
             {
-                return WorldLoadedChunks.get(i).getBlock(icx,icy,icz);
+                return WorldLoadedChunks.get(i).getBlockObject(icx,icy,icz);
             }
         }
-        return 0;
+        return null;
     }
 
-    public short getGlobalBlockID(int x, int y, int z)
+    public Block getGlobalBlock(Vector3i pos)
+    {
+        return getGlobalBlock(pos.x, pos.y, pos.z);
+    }
+    public Block getGlobalBlock(int x, int y, int z)
     {
 
         int chXChk,chZChk, inChXChk, inChYChk, inChZChk;
 
-        chXChk = (x >= 0 ? x/16 : (x/16)-1);
-        chZChk = (z >= 0 ? z/16 : (z/16)-1);
+        chXChk = (x >= 0 ? x/16 : ((x+1)/16)-1);
+        chZChk = (z >= 0 ? z/16 : ((z+1)/16)-1);
 
         inChXChk = (x >= 0 ? x%16 : (16 + x%16) & 0x0F);
         inChZChk = (z >= 0 ? z%16 : (16 + z%16) & 0x0F);
 
         inChYChk = (int)(y%Chunk.sizeY);
 
-        //System.out.println("X : " + x + " Y : " + y + " z : " + z);
-        //System.out.println("CX : " + chXChk + " CZ : " + chZChk + "\nIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
+        //System.out.print("X : " + x + " Y : " + y + " z : " + z);
+        //System.out.println("  ====>   CX : " + chXChk + " CZ : " + chZChk + "\tIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
 
         //System.out.println("OK in calc for chunk pos!!: X : " + inChXChk + " Y : " + inChYChk + " Z : " + inChZChk + " CH X : " + chXChk + "CH Z : " + chZChk);
 
         if(y < 0)
         {
-            return 0;
+            return null;
         }
 
 
-        return this.getBlockID(chXChk, chZChk, inChXChk, inChYChk, inChZChk);
+        return this.getBlockObject(chXChk, chZChk, inChXChk, inChYChk, inChZChk);
     }
 }
 class ChunkUpdate {

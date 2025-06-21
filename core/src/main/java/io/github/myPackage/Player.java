@@ -1,7 +1,6 @@
 package io.github.myPackage;
 
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Camera;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.VertexAttributes;
@@ -10,11 +9,9 @@ import com.badlogic.gdx.graphics.g3d.Model;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute;
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder;
-import com.badlogic.gdx.math.Quaternion;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 
-import java.awt.*;
 //TODO better physics for player
 public class Player {
     float x,y,z;
@@ -30,12 +27,14 @@ public class Player {
     private float playerFeetOffToCam = 1.75f;
     private float velocityH = 0;
     private float velocityV = 0;
-    private final float velocityHCap = 20f;
-    private final float velocityVCap = 30f;
-    private float Gacc = 9.81f;
-    private float horizontalAcc = 5*Gacc;
-    private float horizontalDeAcc = 3*Gacc;
-
+    private final float velocityHCap = 0.05f;
+    private final float velocityVCap = 5f;
+    private float Gacc = 0.1f;
+    private float horizontalAcc = 0.2f;
+    private float horizontalDeAcc = 0.5f;
+    private final float velocityCap = 0.5f;
+    private float jumpAcc = 0.05f;
+    private final float playerRadius = 0.5f;
     private Vector3 tmp = new Vector3();
     private Vector3 tmpWantedDir = new Vector3();
     private Vector3 velocity = new Vector3();
@@ -59,6 +58,7 @@ public class Player {
         this.cam.position.z = playerPos.z;
     }
 
+    Vector3 oldPlayerPos = playerPos;
     public void updatePlayer() {
         float playerOff = 0.25f;
         float deltaTime = Gdx.graphics.getDeltaTime();
@@ -66,30 +66,101 @@ public class Player {
         camController.update();
         wantedDir = camController.wantedDir;
 
-        if(wantedDir.x != 0 || wantedDir.y != 0 || wantedDir.z != 0)
-        {
-            velocity.add(wantedDir.nor().scl(horizontalAcc*deltaTime));
+        Vector3 Hvelocity = new Vector3(new Vector3(wantedDir.x,0,wantedDir.z).nor().scl(horizontalAcc));
+        Hvelocity.y = 0; //For horizontal velocity only
 
-        }else{
 
-            tmp.set(velocity);
-            tmp.nor().scl(horizontalDeAcc*deltaTime);
-            velocity.sub(tmp);
-            if(Math.abs(velocity.x) < 0.5 && Math.abs(velocity.y) < 0.5 && Math.abs(velocity.z) < 0.5)
-            {
-                velocity.setZero();
+        velocity.add(Hvelocity.scl(deltaTime));
+
+        tmp.set(velocity);
+        tmp.y = 0;
+        tmp.nor().scl(horizontalDeAcc * deltaTime);
+
+        Vector3 tmpVelocity = new Vector3(velocity);
+        tmpVelocity.sub(tmp);
+        Vector3 prevVelocity = new Vector3(velocity).nor();
+        Vector3 tmpVelNor = new Vector3(tmpVelocity).nor();
+        if (prevVelocity.dot(tmpVelNor) < 0 && Hvelocity.x ==0 && Hvelocity.z == 0) {
+            // If the dot product is negative, it means the velocity is in the opposite direction
+            // We can set the velocity to zero or adjust it accordingly
+            velocity.set(0, velocity.y, 0);
+        } else {
+            // Otherwise, we can safely subtract the horizontal deacceleration
+            if(Hvelocity.x == 0 && Hvelocity.z == 0) {
+                velocity.sub(tmp);
             }
-            tmp.set(velocity);
-
-
         }
+
+        if(!isOnGround(new Vector3(playerPos).add(velocity)))
+        {
+            velocity.y -= Gacc*deltaTime; // Apply gravity only if not on ground
+        }else{
+            velocity.y = 0;
+            if(wantedDir.y != 0)
+            {
+                // If the player is on the ground and wants to jump
+                velocity.y = wantedDir.y * jumpAcc; // Jumping velocity
+            }
+        }
+
+        //velocity.y -= Gacc*deltaTime;
+
+
+
+        //if(Math.abs(velocity.x) < 0.5)
+        //{
+        //    // If the velocity is very small, set it to zero to avoid jittering
+        //    velocity.x = 0;
+        //}
+        //if(Math.abs(velocity.z) < 0.5)
+        //{
+        //    // If the velocity is very small, set it to zero to avoid jittering
+        //    velocity.z = 0;
+        //}
+        //if(Math.abs(velocity.y) < 0.5)
+        //{
+        //    // If the velocity is very small, set it to zero to avoid jittering
+        //    velocity.y = 0;
+        //}
         //System.out.println(tmpWantedDir);
 
 
         //velocity.clamp(-velocityHCap, velocityHCap);
-        velocity.limit(velocityHCap);
+        Vector3 velocityHorizontal = new Vector3(velocity.x, 0, velocity.z);
+        velocityHorizontal.limit(velocityHCap);
+        velocity = new Vector3(velocityHorizontal.x, velocity.y, velocityHorizontal.z);
+        velocity.limit(velocityCap);
         tmp.set(velocity);
-        playerPos.add(tmp.scl(deltaTime));
+
+        Vector3 newPlayerPos = new Vector3(playerPos).add(tmp);
+
+        // Check for collision at new position
+        if (checkSolid(newPlayerPos)) {
+
+            // Try moving only along X
+            Vector3 tryX = new Vector3(playerPos).add(tmp.x, tmp.y, 0);
+            if (!checkSolid(tryX)) {
+                playerPos.set(tryX);
+                velocity.z = 0; // Reset Z velocity if X movement is successful
+            } else {
+                // Try moving only along Z
+                Vector3 tryZ = new Vector3(playerPos).add(0, tmp.y, tmp.z);
+                if (!checkSolid(tryZ)) {
+                    playerPos.set(tryZ);
+                    velocity.x = 0; // Reset X velocity if Z movement is successful
+                }
+                // Optionally, try Y if you want vertical sliding
+            }
+            // If all fail, stay in place (no movement)
+        } else {
+            // No collision, move freely
+            playerPos.add(tmp);
+        }
+        //playerPos.add(tmp);
+        if (isOnGround(playerPos)) {
+            playerPos.y = Math.round(playerPos.y);
+        }
+
         cam.position.set(playerPos).add(0, playerFeetOffToCam, 0);
 
 
@@ -97,7 +168,7 @@ public class Player {
 
 
 
-        Vector3 looking = lookingAt();
+        /*Vector3 looking = lookingAt();
         instanceArray.clear();
         if(looking != null)
         {
@@ -110,16 +181,69 @@ public class Player {
 
             instanceArray.add(cubeMI);
 
-            if(world.getGlobalBlockID((int)looking.x,(int)looking.y,(int)looking.z) != 0 && camController.button == Input.Buttons.LEFT)
+            if(((world.getGlobalBlock((int)x, (int)y, (int)z) != null) && (((Block)world.getGlobalBlock((int)x, (int)y, (int)z)).canBePlacedOn)) && camController.button == Input.Buttons.LEFT)
             {
                 world.setBlock((int)looking.x,(int)looking.y,(int)looking.z,(short)0);
             }
 
 
-        }
+        }*/
         //System.out.println(looking);
 
         camController.update(); // One more time because FOV and skybox breaks
+
+        //oldPlayerPos = new Vector3(playerPos);
+    }
+    private boolean isOnGround(Vector3 playerPos) {
+        // Check if the player is on the ground by checking the block directly below
+        Vector3i blockBelow = new Vector3i((int) playerPos.x, (int) (playerPos.y - 0.02), (int) playerPos.z);
+        Block block = world.getGlobalBlock(blockBelow);
+        return block != null && block.fullBlock;
+    }
+    private final int rayIterationsMax = 100;
+    private final float rayIncrement = 0.1f;
+    boolean checkForCollision(Vector3 playerPos)
+    {
+        Vector3 newPlayerPos;
+        Block touchingBlock = world.getGlobalBlock(new Vector3i((int)playerPos.x,(int)playerPos.y,(int)playerPos.z));
+        if(touchingBlock == null)
+        {
+            return false;
+
+        }else if(touchingBlock.fullBlock){
+            return true;
+        }else{
+            return false;
+        }
+    }
+    private boolean checkSolid(Vector3 pos)
+    {
+        Vector3 workingVector = new Vector3(pos);
+
+        Block workingBlock = world.getGlobalBlock(transformPosFloatToInt(workingVector));
+        if(workingBlock != null && workingBlock.isColliding(workingVector.x, workingVector.y, workingVector.z))
+        {
+            return true;
+        }
+        return false;
+    }
+    public static Vector3 evaluate(Vector3 origin, Vector3 lastPoint, float t) {
+        // Calculate direction vector from origin to lastPoint
+        Vector3 direction = lastPoint.sub(origin);
+
+        // Return the interpolated point: origin + t * direction
+        return origin.add(direction.sub(t));
+    }
+    private Vector3i transformPosFloatToInt(Vector3 pos)
+    {
+        Vector3i tmp = new Vector3i();
+        tmp.x = pos.x >= 0 ? (int)pos.x : (int)pos.x-1;
+        tmp.y = pos.y >= 0 ? (int)pos.y : (int)pos.y-1;
+        tmp.z = pos.z >= 0 ? (int)pos.z : (int)pos.z-1;
+
+        //System.out.println(pos + " ===> " + tmp);
+
+        return tmp;
     }
     private final float max_distance = 5;
     private Vector3 lookingAt()
@@ -148,7 +272,7 @@ public class Player {
 
         float current_t = 0;
         while (current_t < max_distance) {
-            if (world.getGlobalBlockID((int)x, (int)y, (int)z) != 0) {
+            if ((world.getGlobalBlock((int)x, (int)y, (int)z) != null) && (((Block)world.getGlobalBlock((int)x, (int)y, (int)z)).canBePlacedOn)) {
                 return new Vector3((float) cam.direction.x * current_t + cam_pos.x, (float) cam.direction.y * current_t + cam_pos.y, (float) cam.direction.z * current_t + cam_pos.z);
             }
 

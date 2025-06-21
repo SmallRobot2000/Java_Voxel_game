@@ -155,7 +155,11 @@ public class FirstPersonCameraController extends InputAdapter {
         wantedDir.nor();
         wantedDir.y = 0;
         if (keys.containsKey(upKey)) {
-            wantedDir.y = 1;
+            wantedDir.y += 1;
+        }
+
+        if (keys.containsKey(downKey)) {
+            wantedDir.y -= 1;
         }
 
         //System.out.println(wantedDir);

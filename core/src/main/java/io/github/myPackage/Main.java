@@ -67,6 +67,7 @@ public class Main extends ApplicationAdapter {
     int shadowRes = 8192;
     @Override
     public void create () {
+        Gdx.graphics.setResizable(true);
         environmentInit();
         worldInit();
         playerInit();
