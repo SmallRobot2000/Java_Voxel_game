@@ -24,6 +24,7 @@ import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader;
 import com.badlogic.gdx.graphics.g3d.utils.*;
 import com.badlogic.gdx.graphics.glutils.FrameBuffer;
 import com.badlogic.gdx.graphics.glutils.ShaderProgram;
+import com.badlogic.gdx.math.Matrix4;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.JsonReader;
@@ -65,20 +66,27 @@ public class Main extends ApplicationAdapter {
 
 
     int shadowRes = 8192;
+
+
     @Override
     public void create () {
-        Gdx.graphics.setResizable(true);
+        Gdx.graphics.setWindowedMode(1280, 720);
+
         environmentInit();
         worldInit();
+
         playerInit();
         updaterInit();
+        System.out.println("Create complete");
     }
     private float dir  = 0;
     private long time = System.currentTimeMillis() + 1000;
     private int testX = 5;
     @Override
     public void render () {
+        System.out.println(Gdx.graphics.getWidth());
         worldUpdate();
+        System.out.println("World update complete");
         player.updatePlayer();
 
         x++;
@@ -178,8 +186,14 @@ public class Main extends ApplicationAdapter {
     private void worldUpdate()
     {
         //myWorld.update(cam);
+        //System.out.println("World update started");
+        myWorld.updateChunksVI(cam.position.x/16,cam.position.z/16);
+        //System.out.println("World update VI complete");
         myWorld.updateChunksMain(cam.position.x/16,cam.position.z/16);
+        //System.out.println("World update main complete");
+
         chunkInstances = myWorld.getInstances();
+        //System.out.println("World update instances complete - end");
     }
     private void updaterInit() {
         updater = new ChunkUpdater(cam, myWorld);
@@ -189,7 +203,9 @@ public class Main extends ApplicationAdapter {
 
     private void worldInit() {
         myWorld = new World(12);
+
         myWorld.updateDrawnChunks(0,0);
+
     }
 
     private void playerInit() {
@@ -362,7 +378,25 @@ public class Main extends ApplicationAdapter {
 
     }
 
-    public void resize (int width, int height) {
+    @Override
+    public void resize(int width, int height) {
+
+        cam.viewportWidth = width;
+        cam.viewportHeight = height;
+        cam.update();
+
+        if (sceneBuffer != null) sceneBuffer.dispose();
+        if (ssaoBuffer != null) ssaoBuffer.dispose();
+        if (finalBuffer != null) finalBuffer.dispose();
+
+        sceneBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, true);
+        ssaoBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, false);
+        finalBuffer = new FrameBuffer(Pixmap.Format.RGBA8888, width, height, false);
+
+        // Update SpriteBatch projection for 2D text
+        spriteBatch.setProjectionMatrix(
+            new Matrix4().setToOrtho2D(0, 0, width, height)
+        );
     }
 
     public void pause () {

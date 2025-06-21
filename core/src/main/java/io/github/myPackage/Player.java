@@ -27,12 +27,12 @@ public class Player {
     private float playerFeetOffToCam = 1.75f;
     private float velocityH = 0;
     private float velocityV = 0;
-    private final float velocityHCap = 0.05f;
+    private final float velocityHCap = 1000.05f;
     private final float velocityVCap = 5f;
-    private float Gacc = 0.1f;
-    private float horizontalAcc = 0.2f;
+    private float Gacc = 0.0f;
+    private float horizontalAcc = 10.2f;
     private float horizontalDeAcc = 0.5f;
-    private final float velocityCap = 0.5f;
+    private final float velocityCap = 1000.5f;
     private float jumpAcc = 0.05f;
     private final float playerRadius = 0.5f;
     private Vector3 tmp = new Vector3();

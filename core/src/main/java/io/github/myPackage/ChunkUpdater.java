@@ -30,7 +30,7 @@ public class ChunkUpdater implements Runnable {
 
     @Override
     public void run() {
-
+        isRunning = false;
         while (isRunning) {
             // 2. Synchronize camera position access
             float x, z;
@@ -41,7 +41,7 @@ public class ChunkUpdater implements Runnable {
 
             synchronized (ThisWorld) {
                 //ThisWorld.getChunk((int)cam.position.x/16,(int)cam.position.z/16).createVI();
-                ThisWorld.updateChunksVI(cam.position.x /16,cam.position.z/16);
+                //ThisWorld.updateChunksVI(cam.position.x /16,cam.position.z/16);
             }
 
             // 3. Update chunks and store instances

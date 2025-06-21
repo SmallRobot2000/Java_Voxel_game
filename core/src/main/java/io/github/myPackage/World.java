@@ -4,8 +4,12 @@ import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g3d.ModelInstance;
 import com.badlogic.gdx.utils.Array;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Iterator;
 public class World {
-    private Array<Chunk> WorldLoadedChunks = new Array<Chunk>();
+    //private Array<Chunk> WorldLoadedChunks = new Array<Chunk>();
+    private HashMap<Vector2i, Chunk> WorldLoadedChunksMap = new HashMap<Vector2i, Chunk>();
 
     private long seed = 123;
     private int renderSize = 13;
@@ -23,13 +27,14 @@ public class World {
     {
         seed = seedIn;
         worldModelInstance = new Array<ModelInstance>();
-        //unfinishedChunks = new Array<UnChunk>();
         updateChunks = new Array<Chunk>();
         reGenChunks = new Array<Chunk>();
         reModelChunks = new Array<Chunk>();
         globalTextureUVS = new TextureUV[24*16];
         blocksTexture = new Texture("data/blocks.png");
 
+        //TODO
+        //With JSON
         // Initialize globalBlockSet array elements
         for (int i = 0; i < globalBlockSet.length; i++) {
             globalBlockSet[i] = new BlockSet(); // Replace with appropriate constructor
@@ -37,7 +42,9 @@ public class World {
         globalBlockSet[0].setTextureIDs(1,1,0,2,1,1);
 
 
-        int texSize = 16;
+        //TODO make better
+        //Create global texture UVS
+        int texSize = 16;   //One texture size in pixels
         int widthTotal = blocksTexture.getWidth();
         int heightTotal = blocksTexture.getHeight();
         int texCnt = 0;
@@ -115,63 +122,51 @@ public class World {
     public void updateDrawnChunks(float camX, float camZ)
     {
 
-        Array<Integer> allFx = new Array<Integer>();
-        Array<Integer> allFz = new Array<Integer>();
+        Array<Vector2i> activeChunks = new Array<Vector2i>();
+
         for (int x = 0; x < renderSize; x++)
         {
             for(int z = 0; z < renderSize; z++)
             {
-                int fx = ((int)camX-(renderSize -1)/2)+x;
-                int fz = ((int)camZ-(renderSize -1)/2)+z;
-                allFx.add(fx);
-                allFz.add(fz);
-                //System.out.println("At " + fx + " " + fz);
-                boolean found = false;
-                for(int i = 0; i < WorldLoadedChunks.size; i++)
-                {
-                    if(WorldLoadedChunks.get(i).getPosX() == fx && WorldLoadedChunks.get(i).getPosZ() == fz)
-                    {
-                        found = true;
-                    }
-                }
+                Vector2i currPos = new Vector2i(x, z);
+                activeChunks.add(new Vector2i(x, z));
 
-                if(!found)
+                if(!WorldLoadedChunksMap.containsKey(currPos))
                 {
                     //System.out.println("Generating chunk " + fx + " " + fz);
-                    WorldLoadedChunks.add(new Chunk(fx,fz,seed,globalTextureUVS,blocksTexture));
-
-
+                    Chunk tmpChunk = new Chunk(x,z,seed,globalTextureUVS,blocksTexture, true);
+                    WorldLoadedChunksMap.put(new Vector2i(x,z), tmpChunk);
+                    //WorldLoadedChunks.add(tmpChunk);
+                    //tmpChunk.createVI();
                 }
             }
         }
 
-        for(int i = 0; i < WorldLoadedChunks.size; i ++)
-        {
-            if(!allFx.contains(WorldLoadedChunks.get(i).getPosX(), true) || !allFz.contains(WorldLoadedChunks.get(i).getPosZ(), true))
+        for (WorldLoadedChunksMap.values().iterator(); WorldLoadedChunksMap.values().iterator().hasNext();) {
+            Chunk currChunk = WorldLoadedChunksMap.values().iterator().next();
+            if(!activeChunks.contains(new Vector2i(currChunk.getPosX(), currChunk.getPosZ()), true))
             {
-                //System.out.println("Removing chunk " + WorldLoadedChunks.get(i).getPosX() + " " + WorldLoadedChunks.get(i).getPosZ());
-                WorldLoadedChunks.removeIndex(i);   //remove unloaded chunks
+                //System.out.println("Removing chunk " + currChunk.getPosX() + " " + currChunk.getPosZ());
+                WorldLoadedChunksMap.remove(new Vector2i(currChunk.getPosX(), currChunk.getPosZ()));   //remove unloaded chunks
             }
+
         }
 
         worldModelInstance.clear();
-        for (Chunk currChunk:WorldLoadedChunks)
+        for (WorldLoadedChunksMap.values().iterator(); WorldLoadedChunksMap.values().iterator().hasNext();)
         {
+            Chunk currChunk = WorldLoadedChunksMap.values().iterator().next();
             worldModelInstance.addAll(currChunk.getChnkIstances());
         }
+
+
         //System.gc(); //garbage colector
     }
 
     public Chunk getChunk(int x, int z)
     {
-        for(int i = 0; i < WorldLoadedChunks.size; i ++)
-        {
-            if(WorldLoadedChunks.get(i).getPosZ() == z && WorldLoadedChunks.get(i).getPosX() == x)
-            {
-                return WorldLoadedChunks.get(i);
-            }
-        }
-         return null;
+
+         return WorldLoadedChunksMap.get(new Vector2i(x, z));
     }
 
   /*
@@ -228,6 +223,9 @@ public class World {
     //in worker thread
     public void updateChunksVI(float camX, float camZ)
     {
+        System.out.println("Size of world hash : " + WorldLoadedChunksMap.size());
+        System.out.println("Size of regen buffer : " + reGenChunks.size);
+        System.out.println("Size of remodel buffer : " + reModelChunks.size);
         Array<Integer> allFx = new Array<Integer>();
         Array<Integer> allFz = new Array<Integer>();
         for (int x = 0; x < renderSize; x++)
@@ -239,46 +237,48 @@ public class World {
                 allFx.add(fx);
                 allFz.add(fz);
                 //System.out.println("At " + fx + " " + fz);
-                boolean found = false;
-                for(int i = 0; i < WorldLoadedChunks.size; i++)
-                {
-                    if(WorldLoadedChunks.get(i).getPosX() == fx && WorldLoadedChunks.get(i).getPosZ() == fz)
-                    {
-                        found = true;
-                        break;
-                    }
-                }
 
-                if(!found)
+
+                if(!WorldLoadedChunksMap.containsKey(new Vector2i(fx, fz)))
                 {
                     Chunk tmpChunk = new Chunk(fx,fz,seed,globalTextureUVS,blocksTexture, true);
                     updateChunks.add(tmpChunk);
-                    WorldLoadedChunks.add(tmpChunk);
-                    //WorldLoadedChunks.get(WorldLoadedChunks.indexOf(tmpChunk, true)).createVI();  //Redundant?
-
-
+                    WorldLoadedChunksMap.put(new Vector2i(fx, fz),tmpChunk);
+                    //WorldLoadedChunks.get(WorldLoadedChunks.indexOf(tmpChunk, true)).createVI();  //Redundant? - yes
                 }
             }
         }
-
-        for(int i = 0; i < WorldLoadedChunks.size; i ++)
+        //System.out.println("VI middle of updateChunksVI");
+        ArrayList<Vector2i> toRemove = new ArrayList<Vector2i>();
+        Iterator<Chunk> it = WorldLoadedChunksMap.values().iterator();
+        while(it.hasNext())
         {
-            if(!(allFx.contains(WorldLoadedChunks.get(i).getPosX(), true) && allFz.contains(WorldLoadedChunks.get(i).getPosZ(), true)))
+            Chunk currChunk = it.next();
+            if(!(allFx.contains(currChunk.getPosX(), true) && allFz.contains(currChunk.getPosZ(), true)))
             {
                 //System.out.println("Removing chunk " + WorldLoadedChunks.get(i).getPosX() + " " + WorldLoadedChunks.get(i).getPosZ());
-                WorldLoadedChunks.removeIndex(i);   //remove unloaded chunks
+                toRemove.add(new Vector2i(currChunk.getPosX(), currChunk.getPosZ()));
             }
         }
+        for(Vector2i currPos:toRemove)
+        {
+            WorldLoadedChunksMap.remove(currPos);   //remove unloaded chunks
+        }
+        System.out.println("VI middle of updateChunksVI 2");
         synchronized (reGenChunks)
         {
             for(Chunk currChk:reGenChunks)
             {
+                if(currChk != null)
+                {
+                    currChk.regenVI();
+                    currChk.getChnkIstances().clear();
+                    updateChunks.add(currChk);
 
-                currChk.regenVI();
-                currChk.getChnkIstances().clear();
-                updateChunks.add(currChk);
-                reGenChunks.clear();
+                }
+
             }
+            reGenChunks.clear();
 
         }
 
@@ -294,15 +294,17 @@ public class World {
         {
             for(Chunk currChunk:updateChunks)
             {
-                currChunk.createInstances();
+                currChunk.createInstances(); //create instances for chunks
             }
         }
 
 
-        updateChunks.clear();
-        worldModelInstance.clear();
-        for (Chunk currChunk:WorldLoadedChunks)
+        updateChunks.clear(); //Reset update chunks
+        worldModelInstance.clear(); //Prepare for new instances
+        Iterator<Chunk> it = WorldLoadedChunksMap.values().iterator();
+        while(it.hasNext())
         {
+            Chunk currChunk = it.next();
             worldModelInstance.addAll(currChunk.getChnkIstances());
         }
 
@@ -325,28 +327,24 @@ public class World {
         //System.out.println("CX : " + chXChk + " CZ : " + chZChk + "\nIX : " + inChXChk + " IY : " + inChYChk + " IZ : " + inChZChk);
 
 
-        for(int i = 0; i < WorldLoadedChunks.size; i ++)
+        Chunk tmpChunk = WorldLoadedChunksMap.get(new Vector2i(chXChk, chZChk));
+        boolean foundAllReady = false;
+        if(tmpChunk == null)
         {
-            if(WorldLoadedChunks.get(i).getPosX() == chXChk && WorldLoadedChunks.get(i).getPosZ() == chZChk)
+            //WorldLoadedChunks.removeIndex(i);
+            for(int j = 0; j < reGenChunks.size; j++)
             {
-                WorldLoadedChunks.get(i).setBlock(inChXChk,inChYChk,inChZChk,ID);
-
-                boolean foundAllReady = false;
-                for(int j = 0; j < reGenChunks.size; j++)
+                if(reGenChunks.get(j).getPosX() == tmpChunk.getPosX() && reGenChunks.get(j).getPosZ() == tmpChunk.getPosZ())
                 {
-                    if(reGenChunks.get(j).getPosX() == chXChk && reGenChunks.get(j).getPosZ() == chZChk)
-                    {
-                        foundAllReady = true;
-                    }
+                    foundAllReady = true;
                 }
-                if(!foundAllReady)
-                {
-                    //WorldLoadedChunks.removeIndex(i);
-
-                    reGenChunks.add(WorldLoadedChunks.get(i));
-                }
-
             }
+            if (!foundAllReady)
+            {
+                reGenChunks.add(tmpChunk);
+            }
+        }else{
+            tmpChunk.setBlock(inChXChk,inChYChk,inChZChk,ID);
         }
 
 
@@ -358,14 +356,12 @@ public class World {
 
     public Block getBlockObject(int chx, int chz, int icx, int icy,int icz)
     {
-        for(int i = 0; i < WorldLoadedChunks.size; i ++)
-        {
-            if(WorldLoadedChunks.get(i).getPosX() == chx && WorldLoadedChunks.get(i).getPosZ() == chz)
-            {
-                return WorldLoadedChunks.get(i).getBlockObject(icx,icy,icz);
-            }
+        Chunk tmpChunk = WorldLoadedChunksMap.get(new Vector2i(chx, chz));
+        if(tmpChunk != null) {
+            return tmpChunk.getBlockObject(icx, icy, icz);
+        }else{
+            return null;
         }
-        return null;
     }
 
     public Block getGlobalBlock(Vector3i pos)
@@ -398,8 +394,4 @@ public class World {
 
         return this.getBlockObject(chXChk, chZChk, inChXChk, inChYChk, inChZChk);
     }
-}
-class ChunkUpdate {
-    public int x;
-    public int z;
 }
